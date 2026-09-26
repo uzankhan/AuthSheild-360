@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>AuthShield 360 — Security | Ethical Cyber Horizons</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+  <canvas id="scene"></canvas>
+  <div class="cursor-glow" id="glow"></div>
+  <div class="grain"></div>
+  <div class="vignette"></div>
+  <canvas id="trail"></canvas>
+  <div class="cursor-ring" id="cring"></div>
+  <div class="cursor-dot" id="cdot"></div>
+
+  <!-- SPLASH -->
+  <div id="splash-screen">
+    <div class="splash-inner">
+      <div class="splash-ring"></div>
+      <div class="splash-shield">
+        <svg viewBox="0 0 64 64" width="60" height="60">
+          <path fill="none" stroke="#c9a86a" stroke-width="1.5" d="M32 4L6 16v16c0 14.4 10.4 27.8 26 31.2C47.6 59.8 58 46.4 58 32V16L32 4z"/>
+          <path fill="#d4af37" d="M28 34l-6-6-2.8 2.8L28 39.6l16-16-2.8-2.8z"/>
+        </svg>
+      </div>
+      <h1 class="splash-title">AuthShield <span>360</span></h1>
+      <p class="splash-sub">VerifyVault — Identity Beyond Passwords</p>
+      <div class="splash-loader"><div class="splash-bar"></div></div>
+    </div>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="login-view" class="view">
+    <div class="login-page">
+
+      <div class="login-brand">
+        <div class="logo-circle-sm">
+          <svg viewBox="0 0 64 64" width="34" height="34">
+            <path fill="none" stroke="#c9a86a" stroke-width="1.5" d="M32 4L6 16v16c0 14.4 10.4 27.8 26 31.2C47.6 59.8 58 46.4 58 32V16L32 4z"/>
+            <path fill="#d4af37" d="M28 34l-6-6-2.8 2.8L28 39.6l16-16-2.8-2.8z"/>
+          </svg>
+        </div>
+        <h1>AuthShield <span>360</span></h1>
+        <p class="login-tagline">VerifyVault — Identity Beyond Passwords</p>
+      </div>
+
+      <div class="login-card-clean">
+
+        <div class="login-card-header">
+          <h2>Sign in</h2>
+          <p>Enter your credentials to continue</p>
+        </div>
+
+        <form id="login-form" autocomplete="off">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" placeholder="e.g. student1" required autofocus />
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <div class="password-wrap">
+              <input type="password" id="password" placeholder="Enter your password" required />
+              <button type="button" class="toggle-pw" id="toggle-pw" aria-label="Show password">◐</button>
+            </div>
+          </div>
+          <div id="error-msg" class="error-msg hidden"></div>
+          <div id="lockout-msg" class="lockout-msg hidden"></div>
+          <button type="submit" class="btn-primary" id="btn-login">Continue</button>
+        </form>
+
+        <div id="otp-step" class="auth-step hidden">
+          <div class="step-header">
+            <span class="step-num">2</span>
+            <div>
+              <h3>Mobile OTP Verification</h3>
+              <p>Enter the 6-digit code sent to your registered mobile</p>
+            </div>
+          </div>
+          <div class="otp-inputs" id="otp-inputs">
+            <input type="text" maxlength="1" class="otp-digit" data-idx="0" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-digit" data-idx="1" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-digit" data-idx="2" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-digit" data-idx="3" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-digit" data-idx="4" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-digit" data-idx="5" inputmode="numeric" />
+          </div>
+          <div class="otp-meta">
+            <span id="otp-timer">Code expires in <strong>300</strong>s</span>
+            <button type="button" class="link-btn" id="resend-otp">Resend code</button>
+          </div>
+          <div id="otp-error" class="error-msg hidden"></div>
+          <button type="button" class="btn-primary" id="btn-verify-otp">Verify &amp; Continue</button>
+          <button type="button" class="btn-secondary" id="btn-back-cred">Back</button>
+        </div>
+
+        <div id="email-step" class="auth-step hidden">
+          <div class="step-header">
+            <span class="step-num">3</span>
+            <div>
+              <h3>Email Step-Up Verification</h3>
+              <p>Enter the time-limited code sent to your email</p>
+            </div>
+          </div>
+          <div class="otp-inputs" id="email-otp-inputs">
+            <input type="text" maxlength="1" class="otp-digit email-digit" data-idx="0" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-digit email-digit" data-idx="1" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-digit email-digit" data-idx="2" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-digit email-digit" data-idx="3" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-digit email-digit" data-idx="4" inputmode="numeric" />
+            <input type="text" maxlength="1" class="otp-digit email-digit" data-idx="5" inputmode="numeric" />
+          </div>
+          <div class="otp-meta">
+            <span id="email-timer">Code expires in <strong>300</strong>s</span>
+            <button type="button" class="link-btn" id="resend-email-otp">Resend code</button>
+          </div>
+          <div id="email-error" class="error-msg hidden"></div>
+          <button type="button" class="btn-primary" id="btn-verify-email">Verify &amp; Sign In</button>
+          <button type="button" class="btn-secondary" id="btn-back-otp">Back</button>
+        </div>
+
+      </div>
+
+      <div class="login-footnote">
+        <span class="dot-pulse"></span>
+        <span>Educational Lab Environment · All accounts are fictional</span>
+      </div>
+
+      <div class="login-copyright">
+        © 2026 AuthShield 360 — Ethical Cyber Horizons
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ APP ============ -->
+  <div id="app-view" class="view">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="logo-mini">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 2 4 5v6c0 5.2 3.4 9.4 8 11 4.6-1.6 8-5.8 8-11V5l-8-3z" stroke="currentColor" stroke-width="1.3"/>
+          </svg>
+          <span>AuthShield 360</span>
+        </div>
+        <nav class="main-nav" id="main-nav"></nav>
+      </div>
+      <div class="topbar-right">
+        <div class="user-menu">
+          <span id="user-display">User</span>
+          <button id="btn-logout" class="btn-logout">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="content">
+      <section id="page-dashboard" class="page active">
+        <h2>Welcome, <span id="dash-name">User</span></h2>
+        <div class="cards-grid" id="dash-cards"></div>
+        <div class="info-box">
+          <h3>Profile Information</h3>
+          <ul id="session-info"></ul>
+        </div>
+      </section>
+
+      <section id="page-records" class="page">
+        <h2>Student Records</h2>
+        <p class="page-sub">Fictional student academic records.</p>
+        <div class="table-wrap">
+          <table class="data-table" id="records-table">
+            <thead><tr><th>ID</th><th>Name</th><th>Class</th><th>Attendance</th><th>Status</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="page-assignments" class="page">
+        <h2>Assignments</h2>
+        <p class="page-sub">Current and upcoming assignments.</p>
+        <div class="cards-grid" id="assignments-list"></div>
+      </section>
+
+      <section id="page-results" class="page">
+        <h2>Examination Results</h2>
+        <p class="page-sub">Latest examination scores.</p>
+        <div class="table-wrap">
+          <table class="data-table" id="results-table">
+            <thead><tr><th>Student</th><th>Subject</th><th>Score</th><th>Grade</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="page-admin" class="page">
+        <h2>Administrator Panel</h2>
+        <p class="page-sub">Full control over users, sessions and system.</p>
+
+        <div class="admin-tabs">
+          <button class="admin-tab active" data-tab="overview">Overview</button>
+          <button class="admin-tab" data-tab="users">Users</button>
+          <button class="admin-tab" data-tab="sessions">Active Sessions</button>
+        </div>
+
+        <div id="admin-tab-overview" class="admin-tab-content active">
+          <div class="cards-grid" id="admin-stats"></div>
+        </div>
+
+        <div id="admin-tab-users" class="admin-tab-content">
+          <div class="admin-toolbar">
+            <button class="btn-primary" id="btn-add-user">+ Add User</button>
+            <button class="btn-secondary" id="btn-refresh-users">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="users-table">
+              <thead>
+                <tr><th>Username</th><th>Name</th><th>Role</th><th>Class</th><th>Email</th><th>Last Login</th><th>Actions</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div id="admin-tab-sessions" class="admin-tab-content">
+          <div class="admin-toolbar">
+            <button class="btn-secondary" id="btn-refresh-sessions">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table" id="sessions-table">
+              <thead>
+                <tr><th>User</th><th>Role</th><th>IP</th><th>Mode</th><th>Last Seen</th><th>Actions</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-logs" class="page">
+        <h2>Authentication Logging &amp; Monitoring</h2>
+        <p class="page-sub">Security-relevant events recorded for evaluation.</p>
+        <div class="logs-toolbar">
+          <button class="btn-secondary" id="btn-clear-logs">Clear Logs</button>
+          <button class="btn-secondary" id="btn-export-logs">Export JSON</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" id="logs-table">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Role</th>
+                <th>Action</th>
+                <th>Factor</th>
+                <th>IP Address</th>
+                <th>Result</th>
+                <th>Details</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="page-matrix" class="page">
+        <h2>Identity Security Test Matrix</h2>
+        <p class="page-sub">Mandatory test cases from the SRS.</p>
+        <div class="table-wrap">
+          <table class="data-table" id="matrix-table">
+            <thead><tr><th>Test ID</th><th>User/Role</th><th>Test Action</th><th>Expected Result</th><th>Actual</th><th>Status</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast-container"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="/static/js/scene.js"></script>
+  <script src="/static/js/auth.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
