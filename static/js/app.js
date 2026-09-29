@@ -1,6 +1,5 @@
 /* ============================================================
-   AuthShield 360 – UI Controller
-   Full app.js with OTP Verified overlay + auto-hide dev panel
+   AuthShield 360 – UI Controller (Complete with Profile Edit)
    ============================================================ */
 (function () {
   "use strict";
@@ -11,6 +10,8 @@
   let currentFactor = null;
   let otpCountdown = null;
   let devPanelTimer = null;
+  let sessionTicker = null;
+  let currentUser = null;
 
   // ============ Toast ============
   function toast(msg, type = "info") {
@@ -23,22 +24,16 @@
     setTimeout(() => t.remove(), 3500);
   }
 
-  // ============ Overlay: Access Granted ============
+  // ============ Overlays ============
   function showAccessGranted() {
-    showOverlay("access", "Access Granted", "Signing you in…", 1400);
+    showOverlay("Access Granted", "Signing you in…", 1400);
   }
-
-  // ============ Overlay: OTP Verified ============
-  function showOtpVerified(customLabel) {
-    const label = customLabel || "OTP Verified";
-    showOverlay("otp", label, "Code accepted", 1000);
+  function showOtpVerified(label) {
+    showOverlay(label || "OTP Verified", "Code accepted", 1000);
   }
-
-  // ============ Generic overlay helper ============
-  function showOverlay(kind, title, subtitle, durationMs) {
+  function showOverlay(title, subtitle, durationMs) {
     const existing = document.getElementById("status-overlay");
     if (existing) existing.remove();
-
     const msg = document.createElement("div");
     msg.id = "status-overlay";
     msg.className = "success-msg";
@@ -51,7 +46,6 @@
       <span><strong>${title}</strong> — ${subtitle}</span>
     `;
     document.body.appendChild(msg);
-
     setTimeout(() => {
       if (msg && msg.parentNode) {
         msg.style.transition = "opacity 0.3s ease, transform 0.3s ease";
@@ -76,6 +70,7 @@
     $$(".nav-link").forEach((l) => l.classList.toggle("active", l.dataset.page === id));
     const sb = $("#sidebar");
     if (sb) sb.classList.remove("open");
+    if (id !== "admin") stopSessionTicker();
   }
 
   // ============ OTP Inputs ============
@@ -99,14 +94,10 @@
       });
     });
   }
-  function otpValue(sel) {
-    return Array.from($$(sel)).map((i) => i.value).join("");
-  }
-  function clearOtp(sel) {
-    $$(sel).forEach((i) => (i.value = ""));
-  }
+  function otpValue(sel) { return Array.from($$(sel)).map((i) => i.value).join(""); }
+  function clearOtp(sel) { $$(sel).forEach((i) => (i.value = "")); }
 
-  // ============ Login (Step 1) ============
+  // ============ Login ============
   async function handleLogin(e) {
     e.preventDefault();
     const errEl = $("#error-msg");
@@ -121,11 +112,9 @@
       errEl.classList.remove("hidden");
       return;
     }
-
     const btn = $("#btn-login");
     btn.disabled = true;
     btn.textContent = "Verifying…";
-
     const r = await AuthClient.login(u, p);
     btn.disabled = false;
     btn.textContent = "Continue";
@@ -140,7 +129,6 @@
       errEl.classList.remove("hidden");
       return;
     }
-
     if (r.data.status === "authenticated") {
       showAccessGranted();
       setTimeout(() => enterApp(r.data.user, r.data.mode), 1400);
@@ -153,25 +141,18 @@
     }
   }
 
-  // ============ OTP Step ============
   function gotoOtpStep(info) {
     $("#login-form").classList.add("hidden");
     $("#otp-step").classList.toggle("hidden", info.factor !== "mobile");
     $("#email-step").classList.toggle("hidden", info.factor !== "email");
     $("#otp-error").classList.add("hidden");
     $("#email-error").classList.add("hidden");
-
     const sel = info.factor === "mobile" ? "#otp-inputs" : "#email-otp-inputs";
     clearOtp(sel);
-    const digitSel = info.factor === "mobile"
-      ? "#otp-inputs .otp-digit"
-      : "#email-otp-inputs .otp-digit";
+    const digitSel = info.factor === "mobile" ? "#otp-inputs .otp-digit" : "#email-otp-inputs .otp-digit";
     const first = $$(digitSel)[0];
     if (first) first.focus();
-
-    if (info.dev_otp) {
-      showDevOtpPanel(info.factor, info.dev_otp, info.destination);
-    }
+    if (info.dev_otp) showDevOtpPanel(info.factor, info.dev_otp, info.destination);
     startCountdown(info.factor, info.expires_in || 300);
   }
 
@@ -198,25 +179,20 @@
     const sel = isM ? "#otp-inputs .otp-digit" : "#email-otp-inputs .otp-digit";
     const errEl = isM ? "#otp-error" : "#email-error";
     const code = otpValue(sel);
-
     $(errEl).classList.add("hidden");
     if (code.length !== 6) {
       $(errEl).textContent = "Please enter the full 6-digit code";
       $(errEl).classList.remove("hidden");
       return;
     }
-
     const r = await AuthClient.verifyOtp(currentChallenge, code);
     if (!r.ok || !r.data.ok) {
-      $(errEl).textContent = (r.data && r.data.message) || "Invalid code";
-      $(errEl).classList.remove("hidden");
+      $(errEl).classList.add("hidden");
+      toast("Verification failed. Please try again.", "error");
+      clearOtp(sel);
       return;
     }
-
-    // OTP accepted → hide dev panel if any
     hideDevOtpPanel();
-
-    // Next step: email OTP (admin)
     if (r.data.status === "otp_sent") {
       showOtpVerified("Mobile OTP Verified");
       currentChallenge = r.data.challenge_token;
@@ -224,8 +200,6 @@
       setTimeout(() => gotoOtpStep(r.data), 1100);
       return;
     }
-
-    // Final: authenticated
     if (r.data.status === "authenticated") {
       if (otpCountdown) clearInterval(otpCountdown);
       showOtpVerified(isM ? "Mobile OTP Verified" : "Email OTP Verified");
@@ -246,13 +220,10 @@
     currentFactor = r.data.factor;
     clearOtp(currentFactor === "mobile" ? "#otp-inputs" : "#email-otp-inputs");
     startCountdown(currentFactor, r.data.expires_in || 300);
-    if (r.data.dev_otp) {
-      showDevOtpPanel(currentFactor, r.data.dev_otp, r.data.destination);
-    }
+    if (r.data.dev_otp) showDevOtpPanel(currentFactor, r.data.dev_otp, r.data.destination);
     toast(`New code sent to ${r.data.destination}`, "info");
   }
 
-  // ============ Dev OTP Panel (auto-hide 5s) ============
   function showDevOtpPanel(factor, otp, destination) {
     let panel = document.getElementById("dev-otp-panel");
     if (!panel) {
@@ -271,7 +242,6 @@
         <div class="dev-otp-note">SMS/Email delivery failed. Auto-hides in 5s.</div>
       </div>`;
     panel.classList.add("active");
-
     if (devPanelTimer) clearTimeout(devPanelTimer);
     devPanelTimer = setTimeout(() => hideDevOtpPanel(), 5000);
   }
@@ -284,18 +254,15 @@
     panel.style.opacity = "0";
     panel.style.transform = "translateY(-12px)";
     setTimeout(() => panel.remove(), 350);
-    if (devPanelTimer) {
-      clearTimeout(devPanelTimer);
-      devPanelTimer = null;
-    }
+    if (devPanelTimer) { clearTimeout(devPanelTimer); devPanelTimer = null; }
   }
 
   // ============ Enter App ============
   function enterApp(user, mode) {
+    currentUser = user;
     showView("app-view");
     $("#user-display").textContent = user.display_name;
     $("#dash-name").textContent = user.display_name;
-
     buildNav(user.role);
     buildDashboard(user);
     loadPortalData();
@@ -305,14 +272,21 @@
   // ============ Navigation ============
   function buildNav(role) {
     const perms = {
-      student: ["dashboard", "records", "assignments", "results", "matrix"],
-      teacher: ["dashboard", "records", "assignments", "results", "logs", "matrix"],
-      admin:   ["dashboard", "records", "assignments", "results", "admin", "logs", "matrix"],
+      student: ["dashboard", "records", "assignments", "results", "profile", "matrix"],
+      teacher: ["dashboard", "records", "assignments", "results", "students", "profile", "logs", "matrix"],
+      admin:   ["dashboard", "records", "assignments", "results", "admin", "students", "profile", "logs", "matrix"],
     }[role] || [];
 
     const labels = {
-      dashboard: "Dashboard", records: "Records", assignments: "Assignments",
-      results: "Results", admin: "Admin", logs: "Monitoring", matrix: "Test Matrix",
+      dashboard: "Dashboard",
+      records: "Records",
+      assignments: "Assignments",
+      results: "Results",
+      admin: "Admin",
+      students: "Students",
+      profile: "Profile",
+      logs: "Monitoring",
+      matrix: "Test Matrix",
     };
 
     const nav = $("#main-nav");
@@ -326,6 +300,8 @@
         if (id === "logs") loadLogs();
         if (id === "admin") loadAdminPanel();
         if (id === "matrix") loadTestMatrix();
+        if (id === "profile") loadProfile();
+        if (id === "students") loadTeacherStudents();
         showPage(id);
       });
       nav.appendChild(b);
@@ -372,10 +348,7 @@
     rows.push(["Mobile", user.mobile]);
     return rows;
   }
-
-  function capitalize(s) {
-    return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
-  }
+  function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ""; }
 
   // ============ Portal Data ============
   async function loadPortalData() {
@@ -399,7 +372,61 @@
     }
   }
 
-  // ============ Logs (with IP) ============
+  // ============ Profile (self) ============
+  async function loadProfile() {
+    const r = await AuthClient.getProfile();
+    if (!r.ok || !r.data.ok) {
+      toast("Unable to load profile", "error");
+      return;
+    }
+    const u = r.data.user;
+    $("#pf-username").value = u.username || "";
+    $("#pf-display-name").value = u.display_name || "";
+    $("#pf-email").value = u.email || "";
+    $("#pf-mobile").value = u.mobile || "";
+    $("#pf-class").value = u.class_name || "";
+    $("#pf-role").value = u.role || "";
+    $("#pf-password").value = "";
+    $("#profile-msg").classList.add("hidden");
+  }
+
+  async function handleProfileSubmit(e) {
+    e.preventDefault();
+    const msgEl = $("#profile-msg");
+    msgEl.classList.add("hidden");
+
+    const payload = {
+      username: $("#pf-username").value.trim(),
+      display_name: $("#pf-display-name").value.trim(),
+      email: $("#pf-email").value.trim(),
+      mobile: $("#pf-mobile").value.trim(),
+    };
+
+    const role = $("#pf-role").value;
+    if (role === "student") {
+      payload.class_name = $("#pf-class").value.trim() || null;
+    }
+
+    const pw = $("#pf-password").value;
+    if (pw) payload.password = pw;
+
+    const r = await AuthClient.updateProfile(payload);
+    if (!r.ok || !r.data.ok) {
+      msgEl.textContent = (r.data && r.data.message) || "Update failed";
+      msgEl.classList.remove("hidden");
+      return;
+    }
+
+    // Refresh current user
+    currentUser = r.data.user;
+    $("#user-display").textContent = currentUser.display_name;
+    $("#dash-name").textContent = currentUser.display_name;
+    buildDashboard(currentUser);
+    toast("Profile updated successfully", "success");
+    $("#pf-password").value = "";
+  }
+
+  // ============ Logs ============
   async function loadLogs() {
     const r = await AuthClient.adminLogs();
     const tb = $("#logs-table tbody");
@@ -482,6 +509,10 @@
         </td>
       </tr>`).join("");
 
+    // Cache all users for edit modal
+    window.__usersCache = {};
+    r.data.data.forEach((u) => { window.__usersCache[u.id] = u; });
+
     tb.querySelectorAll(".mini-btn").forEach((b) => {
       b.addEventListener("click", async () => {
         const id = b.dataset.id;
@@ -505,30 +536,99 @@
             toast("Force logout failed", "error");
           }
         } else if (act === "edit") {
-          const name = prompt("New display name:");
-          if (!name) return;
-          const res = await AuthClient.adminUpdateUser(id, { display_name: name });
-          if (res.ok && res.data.ok) {
-            toast("User updated", "success");
-            loadUsers();
-          } else {
-            toast("Update failed", "error");
-          }
+          openEditUserModal(window.__usersCache[id]);
         }
       });
     });
+  }
+
+  // ============ Edit User Modal ============
+  let editingUser = null;
+
+  function openEditUserModal(user) {
+    if (!user) return;
+    editingUser = user;
+    $("#eu-id").value = user.id;
+    $("#eu-username").value = user.username || "";
+    $("#eu-display").value = user.display_name || "";
+    $("#eu-email").value = user.email || "";
+    $("#eu-mobile").value = user.mobile || "";
+    $("#eu-role").value = user.role || "student";
+    $("#eu-class").value = user.class_name || "";
+    $("#eu-password").value = "";
+    $("#edit-user-msg").classList.add("hidden");
+    $("#edit-user-modal").classList.remove("hidden");
+  }
+
+  function closeEditUserModal() {
+    $("#edit-user-modal").classList.add("hidden");
+    editingUser = null;
+  }
+
+  async function handleEditUserSubmit(e) {
+    e.preventDefault();
+    if (!editingUser) return;
+    const msgEl = $("#edit-user-msg");
+    msgEl.classList.add("hidden");
+
+    const payload = {
+      username: $("#eu-username").value.trim(),
+      display_name: $("#eu-display").value.trim(),
+      email: $("#eu-email").value.trim(),
+      mobile: $("#eu-mobile").value.trim(),
+      role: $("#eu-role").value,
+      class_name: $("#eu-class").value.trim() || null,
+    };
+    const pw = $("#eu-password").value;
+    if (pw) payload.password = pw;
+
+    const r = await AuthClient.adminUpdateUser(editingUser.id, payload);
+    if (!r.ok || !r.data.ok) {
+      msgEl.textContent = (r.data && r.data.message) || "Update failed";
+      msgEl.classList.remove("hidden");
+      return;
+    }
+    toast("User updated successfully", "success");
+    closeEditUserModal();
+    loadUsers();
+    loadAdminStats();
+  }
+
+  // ============ Live Duration Ticker ============
+  function stopSessionTicker() {
+    if (sessionTicker) { clearInterval(sessionTicker); sessionTicker = null; }
+  }
+  function formatDuration(totalSeconds) {
+    const s = Math.max(0, totalSeconds);
+    const hrs = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    const secs = s % 60;
+    if (hrs > 0) return `${hrs}h ${mins}m ${secs}s`;
+    if (mins > 0) return `${mins}m ${secs}s`;
+    return `${secs}s`;
+  }
+  function startSessionTicker() {
+    stopSessionTicker();
+    sessionTicker = setInterval(() => {
+      $$(".duration-live").forEach((el) => {
+        const loginTime = new Date(el.dataset.login).getTime();
+        if (isNaN(loginTime)) return;
+        const seconds = Math.floor((Date.now() - loginTime) / 1000);
+        el.textContent = formatDuration(seconds);
+      });
+    }, 1000);
   }
 
   async function loadSessions() {
     const r = await AuthClient.adminSessions();
     const tb = $("#sessions-table tbody");
     if (!r.ok || !r.data.ok) {
-      tb.innerHTML = `<tr><td colspan="6">Access denied</td></tr>`;
-      return;
+      tb.innerHTML = `<tr><td colspan="8" style="text-align:center">Access denied</td></tr>`;
+      stopSessionTicker(); return;
     }
     if (!r.data.data.length) {
-      tb.innerHTML = `<tr><td colspan="6" style="text-align:center">No active sessions</td></tr>`;
-      return;
+      tb.innerHTML = `<tr><td colspan="8" style="text-align:center">No active sessions</td></tr>`;
+      stopSessionTicker(); return;
     }
     tb.innerHTML = r.data.data.map((s) => `
       <tr>
@@ -536,21 +636,102 @@
         <td>${escapeHtml(s.role)}</td>
         <td><span class="ip-cell">${escapeHtml(s.ip)}</span></td>
         <td>${escapeHtml(s.mode || "—")}</td>
+        <td>${new Date(s.login_time).toLocaleString()}</td>
         <td>${new Date(s.last_seen).toLocaleString()}</td>
+        <td><span class="duration-live" data-login="${escapeHtml(s.login_time)}">${escapeHtml(s.duration || "0s")}</span></td>
         <td><button class="mini-btn danger" data-act="kill" data-session="${escapeHtml(s.session_id)}">Kill</button></td>
       </tr>`).join("");
-
     tb.querySelectorAll(".mini-btn").forEach((b) => {
       b.addEventListener("click", async () => {
         const res = await AuthClient.adminKillSession(b.dataset.session);
         if (res.ok && res.data.ok) {
           toast("Session killed", "success");
           loadSessions();
-        } else {
-          toast("Failed", "error");
-        }
+        } else { toast("Failed", "error"); }
       });
     });
+    startSessionTicker();
+  }
+
+  // ============ Teacher: Manage Students ============
+  async function loadTeacherStudents() {
+    const r = await AuthClient.teacherListStudents();
+    const tb = $("#teacher-students-table tbody");
+    if (!r.ok || !r.data.ok) {
+      tb.innerHTML = `<tr><td colspan="5" style="text-align:center">Access denied</td></tr>`;
+      return;
+    }
+    if (!r.data.data.length) {
+      tb.innerHTML = `<tr><td colspan="5" style="text-align:center">No students</td></tr>`;
+      return;
+    }
+    tb.innerHTML = r.data.data.map((u) => `
+      <tr>
+        <td>${escapeHtml(u.username)}</td>
+        <td>${escapeHtml(u.display_name)}</td>
+        <td>${escapeHtml(u.class_name || "—")}</td>
+        <td>${escapeHtml(u.email)}</td>
+        <td class="action-cell">
+          <button class="mini-btn" data-act="edit-student" data-id="${u.id}">Edit</button>
+        </td>
+      </tr>`).join("");
+
+    window.__studentsCache = {};
+    r.data.data.forEach((u) => { window.__studentsCache[u.id] = u; });
+
+    tb.querySelectorAll(".mini-btn").forEach((b) => {
+      b.addEventListener("click", () => {
+        const user = window.__studentsCache[b.dataset.id];
+        openTeacherStudentModal(user);
+      });
+    });
+  }
+
+  // Teacher modal reuses admin modal but only shows student fields
+  let editingTeacherStudent = null;
+  function openTeacherStudentModal(user) {
+    if (!user) return;
+    editingTeacherStudent = user;
+    $("#eu-id").value = user.id;
+    $("#eu-username").value = user.username || "";
+    $("#eu-username").disabled = true;  // Teacher can't change username
+    $("#eu-display").value = user.display_name || "";
+    $("#eu-email").value = user.email || "";
+    $("#eu-mobile").value = user.mobile || "";
+    $("#eu-role").value = user.role || "student";
+    $("#eu-role").disabled = true;  // Teacher can't change role
+    $("#eu-class").value = user.class_name || "";
+    $("#eu-password").value = "";
+    $("#edit-user-msg").classList.add("hidden");
+    $("#edit-user-modal").classList.remove("hidden");
+  }
+
+  async function handleTeacherStudentSubmit(e) {
+    e.preventDefault();
+    if (!editingTeacherStudent) return;
+    const msgEl = $("#edit-user-msg");
+    msgEl.classList.add("hidden");
+
+    const payload = {
+      display_name: $("#eu-display").value.trim(),
+      email: $("#eu-email").value.trim(),
+      mobile: $("#eu-mobile").value.trim(),
+      class_name: $("#eu-class").value.trim() || null,
+    };
+    const pw = $("#eu-password").value;
+    if (pw) payload.password = pw;
+
+    const r = await AuthClient.teacherUpdateStudent(editingTeacherStudent.id, payload);
+    if (!r.ok || !r.data.ok) {
+      msgEl.textContent = (r.data && r.data.message) || "Update failed";
+      msgEl.classList.remove("hidden");
+      return;
+    }
+    toast("Student updated successfully", "success");
+    closeEditUserModal();
+    $("#eu-username").disabled = false;
+    $("#eu-role").disabled = false;
+    loadTeacherStudents();
   }
 
   async function handleAddUser() {
@@ -611,10 +792,7 @@
   // ============ Splash ============
   function runSplash() {
     const splash = $("#splash-screen");
-    if (!splash) {
-      showView("login-view");
-      return;
-    }
+    if (!splash) { showView("login-view"); return; }
     splash.classList.add("active");
     setTimeout(() => {
       splash.classList.add("fade-out");
@@ -652,6 +830,7 @@
     });
 
     $("#btn-logout").addEventListener("click", async () => {
+      stopSessionTicker();
       await AuthClient.logout();
       location.reload();
     });
@@ -663,26 +842,60 @@
     const btnRefS = $("#btn-refresh-sessions");
     if (btnRefS) btnRefS.addEventListener("click", loadSessions);
 
+    // Profile form
+    const pfForm = $("#profile-form");
+    if (pfForm) pfForm.addEventListener("submit", handleProfileSubmit);
+
+    // Edit user modal
+    const euForm = $("#edit-user-form");
+    if (euForm) {
+      euForm.addEventListener("submit", (e) => {
+        // Route to correct handler based on context
+        if (editingTeacherStudent) {
+          handleTeacherStudentSubmit(e);
+        } else {
+          handleEditUserSubmit(e);
+        }
+      });
+    }
+    const mc = $("#modal-close-btn");
+    if (mc) mc.addEventListener("click", () => {
+      $("#eu-username").disabled = false;
+      $("#eu-role").disabled = false;
+      editingTeacherStudent = null;
+      closeEditUserModal();
+    });
+    const mcan = $("#modal-cancel-btn");
+    if (mcan) mcan.addEventListener("click", () => {
+      $("#eu-username").disabled = false;
+      $("#eu-role").disabled = false;
+      editingTeacherStudent = null;
+      closeEditUserModal();
+    });
+    // Close on outside click
+    const modal = $("#edit-user-modal");
+    if (modal) modal.addEventListener("click", (e) => {
+      if (e.target === modal) {
+        $("#eu-username").disabled = false;
+        $("#eu-role").disabled = false;
+        editingTeacherStudent = null;
+        closeEditUserModal();
+      }
+    });
+
+    // Logs actions
     const cb = $("#btn-clear-logs");
     if (cb) cb.addEventListener("click", async () => {
       if (!confirm("Clear all logs?")) return;
       const r = await AuthClient.clearLogs();
-      if (r.ok) {
-        toast("Logs cleared", "info");
-        loadLogs();
-      }
+      if (r.ok) { toast("Logs cleared", "info"); loadLogs(); }
     });
 
     const eb = $("#btn-export-logs");
     if (eb) eb.addEventListener("click", async () => {
       const r = await AuthClient.adminLogs();
-      if (!r.ok || !r.data.ok) {
-        toast("Export failed", "error");
-        return;
-      }
-      const blob = new Blob([JSON.stringify(r.data.data, null, 2)], {
-        type: "application/json",
-      });
+      if (!r.ok || !r.data.ok) { toast("Export failed", "error"); return; }
+      const blob = new Blob([JSON.stringify(r.data.data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

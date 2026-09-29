@@ -24,8 +24,8 @@ def seed_data():
 
     # ---------- Admin & Teacher ----------
     users = [
-        User(username="admin1", display_name="Sir Shabir Ahmed",
-             email="shabbirahmed@aptech.edu", mobile="+92-300-0000003",
+        User(username="admin1", display_name="Imran Khan",
+             email="imrankhan@aptech.edu", mobile="+92-300-0000003",
              password_hash=hash_password("Admin@123"), role="admin"),
         User(username="teacher1", display_name="Sir Mustafa Raza",
              email="syedmustafa.raza@gmail.com", mobile="+92-300-0000002",

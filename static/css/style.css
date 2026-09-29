@@ -954,3 +954,188 @@ a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid 
   border: 1px solid var(--line);
   display: inline-block;
 }
+
+
+/* ============ Live duration cell ============ */
+.duration-live {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: #1b4332;
+  background: rgba(45, 106, 79, 0.1);
+  border: 1px solid rgba(45, 106, 79, 0.25);
+  padding: 4px 10px;
+  border-radius: 3px;
+  display: inline-block;
+  letter-spacing: 0.04em;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* ============================================================
+   Profile Form & Modal
+   ============================================================ */
+.profile-form { padding: 28px 30px 32px; }
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.profile-form .form-group { margin-bottom: 0; }
+.profile-form .form-group input,
+.modal-card .form-group input,
+.modal-card .form-group select {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--card-alt);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  transition: all .25s;
+  outline: none;
+}
+.profile-form .form-group input:focus,
+.modal-card .form-group input:focus,
+.modal-card .form-group select:focus {
+  border-color: var(--gold-rich);
+  background: var(--card);
+  box-shadow: 0 0 0 4px var(--gold-soft);
+}
+.profile-form .form-group input:disabled,
+.modal-card .form-group input:disabled,
+.modal-card .form-group select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.form-group label .hint {
+  color: var(--text-muted);
+  font-family: 'Manrope', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 6px;
+}
+.section-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 28px 0;
+}
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+.form-actions .btn-primary {
+  width: auto;
+  padding: 12px 28px;
+  margin: 0;
+  font-size: 13px;
+}
+
+/* ============================================================
+   Modal
+   ============================================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 15, 5, 0.55);
+  backdrop-filter: blur(6px);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: modalFadeIn 0.25s ease;
+}
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.modal-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow:
+    0 30px 80px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(212, 175, 55, 0.08);
+  position: relative;
+  animation: modalSlideIn 0.35s cubic-bezier(.16, 1, .3, 1);
+}
+@keyframes modalSlideIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.modal-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--gold-rich), transparent);
+}
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 22px 28px;
+  border-bottom: 1px solid var(--line);
+}
+.modal-head h3 {
+  font-family: 'Fraunces', serif;
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: all .2s;
+}
+.modal-close:hover {
+  background: var(--gold-soft);
+  color: var(--text);
+}
+.modal-body { padding: 26px 28px 28px; }
+.modal-body .form-group { margin-bottom: 0; }
+.modal-body .form-row { margin-bottom: 18px; }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.modal-actions .btn-primary,
+.modal-actions .btn-secondary {
+  width: auto;
+  margin: 0;
+  padding: 11px 24px;
+  font-size: 12.5px;
+}
+
+/* ============================================================
+   Mobile responsive
+   ============================================================ */
+@media (max-width: 640px) {
+  .form-row { grid-template-columns: 1fr; gap: 16px; }
+  .modal-card { max-height: 95vh; }
+  .modal-head { padding: 18px 20px; }
+  .modal-body { padding: 20px; }
+  .profile-form { padding: 22px 20px 26px; }
+}

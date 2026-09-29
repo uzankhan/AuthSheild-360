@@ -432,3 +432,51 @@ def logout():
     resp = make_response(jsonify({"ok": True}))
     clear_session_cookie(resp)
     return resp
+
+
+# ============================================================
+# Self Profile (all roles)
+# ============================================================
+@auth_bp.route("/profile", methods=["GET"])
+@login_required
+def get_profile():
+    return jsonify({"ok": True, "user": g.user.to_public_dict()})
+
+
+@auth_bp.route("/profile", methods=["PUT"])
+@login_required
+def update_profile():
+    from backend.security import hash_password
+
+    data = _json()
+    user = g.user
+
+    # Username change (check uniqueness)
+    if "username" in data and data["username"]:
+        new_uname = data["username"].strip().lower()
+        if new_uname != user.username:
+            if User.query.filter_by(username=new_uname).first():
+                return jsonify({"ok": False, "message": "Username already taken"}), 400
+            if len(new_uname) < 3 or len(new_uname) > 64:
+                return jsonify({"ok": False, "message": "Username must be 3-64 chars"}), 400
+            user.username = new_uname
+
+    # Basic fields
+    for field in ("display_name", "email", "mobile"):
+        if field in data and data[field]:
+            setattr(user, field, str(data[field]).strip())
+
+    # Password change
+    if "password" in data and data["password"]:
+        if len(data["password"]) < 6:
+            return jsonify({"ok": False, "message": "Password must be at least 6 characters"}), 400
+        user.password_hash = hash_password(data["password"])
+
+    db.session.commit()
+
+    log_event("Profile Updated", "Self", "SUCCESS",
+              f"User {user.username} updated own profile",
+              user.username, user.role,
+              session_ref=g.session.token_hash[:16] if hasattr(g, 'session') else None)
+
+    return jsonify({"ok": True, "user": user.to_public_dict()})

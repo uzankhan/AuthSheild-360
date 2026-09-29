@@ -80,6 +80,24 @@
   // Public API
   // ============================================================
   window.AuthClient = {
+        // ---- Self profile ----
+    getProfile: () => getJson("/api/auth/profile"),
+    updateProfile: (payload) => fetch("/api/auth/profile", {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).then(async (r) => ({ status: r.status, ok: r.ok, data: await r.json().catch(() => ({})) })),
+
+    // ---- Teacher: students ----
+    teacherListStudents: () => getJson("/api/admin/students"),
+    teacherUpdateStudent: (id, payload) => fetch(`/api/admin/students/${id}`, {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).then(async (r) => ({ status: r.status, ok: r.ok, data: await r.json().catch(() => ({})) })),
+    
     // ---- Auth flow ----
     login: (u, p) => postJson("/login", { username: u, password: p }),
     verifyOtp: (t, o) => postJson("/verify-otp", { challenge_token: t, otp: o }),
@@ -91,6 +109,28 @@
     records: () => getJson("/api/portal/records"),
     assignments: () => getJson("/api/portal/assignments"),
     results: () => getJson("/api/portal/results"),
+
+        // ---- Self profile ----
+    getProfile: () => getJson("/api/auth/profile"),
+    updateProfile: (payload) => {
+      return fetch("/api/auth/profile", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).then(async (r) => ({ status: r.status, ok: r.ok, data: await r.json().catch(() => ({})) }));
+    },
+
+    // ---- Teacher: students ----
+    teacherListStudents: () => getJson("/api/admin/students"),
+    teacherUpdateStudent: (id, payload) => {
+      return fetch(`/api/admin/students/${id}`, {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }).then(async (r) => ({ status: r.status, ok: r.ok, data: await r.json().catch(() => ({})) }));
+    },
 
     // ---- Admin: overview & logs ----
     adminOverview: () => getJson("/api/admin/overview"),

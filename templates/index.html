@@ -19,7 +19,7 @@
   <div class="cursor-ring" id="cring"></div>
   <div class="cursor-dot" id="cdot"></div>
 
-  <!-- SPLASH -->
+  <!-- ============ SPLASH ============ -->
   <div id="splash-screen">
     <div class="splash-inner">
       <div class="splash-ring"></div>
@@ -74,6 +74,7 @@
           <button type="submit" class="btn-primary" id="btn-login">Continue</button>
         </form>
 
+        <!-- Step 2: Mobile OTP -->
         <div id="otp-step" class="auth-step hidden">
           <div class="step-header">
             <span class="step-num">2</span>
@@ -99,6 +100,7 @@
           <button type="button" class="btn-secondary" id="btn-back-cred">Back</button>
         </div>
 
+        <!-- Step 3: Email OTP -->
         <div id="email-step" class="auth-step hidden">
           <div class="step-header">
             <span class="step-num">3</span>
@@ -159,6 +161,7 @@
     </header>
 
     <main class="content">
+      <!-- Dashboard -->
       <section id="page-dashboard" class="page active">
         <h2>Welcome, <span id="dash-name">User</span></h2>
         <div class="cards-grid" id="dash-cards"></div>
@@ -168,6 +171,7 @@
         </div>
       </section>
 
+      <!-- Records -->
       <section id="page-records" class="page">
         <h2>Student Records</h2>
         <p class="page-sub">Fictional student academic records.</p>
@@ -179,12 +183,14 @@
         </div>
       </section>
 
+      <!-- Assignments -->
       <section id="page-assignments" class="page">
         <h2>Assignments</h2>
         <p class="page-sub">Current and upcoming assignments.</p>
         <div class="cards-grid" id="assignments-list"></div>
       </section>
 
+      <!-- Results -->
       <section id="page-results" class="page">
         <h2>Examination Results</h2>
         <p class="page-sub">Latest examination scores.</p>
@@ -196,6 +202,66 @@
         </div>
       </section>
 
+      <!-- Profile -->
+      <section id="page-profile" class="page">
+        <h2>My Profile</h2>
+        <p class="page-sub">View and update your account information.</p>
+
+        <div class="section-block">
+          <div class="section-block-head">
+            <h3>Account Details</h3>
+            <span class="section-tag">Editable</span>
+          </div>
+          <form id="profile-form" class="profile-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pf-username">Username</label>
+                <input type="text" id="pf-username" required />
+              </div>
+              <div class="form-group">
+                <label for="pf-display-name">Full Name</label>
+                <input type="text" id="pf-display-name" required />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pf-email">Email</label>
+                <input type="email" id="pf-email" required />
+              </div>
+              <div class="form-group">
+                <label for="pf-mobile">Mobile</label>
+                <input type="text" id="pf-mobile" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="pf-class">Class</label>
+                <input type="text" id="pf-class" placeholder="Only for students" />
+              </div>
+              <div class="form-group">
+                <label for="pf-role">Role</label>
+                <input type="text" id="pf-role" disabled />
+              </div>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <div class="form-group">
+              <label for="pf-password">New Password <span class="hint">(leave blank to keep current)</span></label>
+              <input type="password" id="pf-password" placeholder="Min 6 characters" />
+            </div>
+
+            <div id="profile-msg" class="error-msg hidden"></div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary" id="btn-save-profile">Save Changes</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- Admin Panel -->
       <section id="page-admin" class="page">
         <h2>Administrator Panel</h2>
         <p class="page-sub">Full control over users, sessions and system.</p>
@@ -232,7 +298,16 @@
           <div class="table-wrap">
             <table class="data-table" id="sessions-table">
               <thead>
-                <tr><th>User</th><th>Role</th><th>IP</th><th>Mode</th><th>Last Seen</th><th>Actions</th></tr>
+                <tr>
+                  <th>User</th>
+                  <th>Role</th>
+                  <th>IP</th>
+                  <th>Mode</th>
+                  <th>Login Time</th>
+                  <th>Last Seen</th>
+                  <th>Duration</th>
+                  <th>Actions</th>
+                </tr>
               </thead>
               <tbody></tbody>
             </table>
@@ -240,6 +315,27 @@
         </div>
       </section>
 
+      <!-- Students (teacher/admin) -->
+      <section id="page-students" class="page">
+        <h2>Manage Students</h2>
+        <p class="page-sub">Teachers and admins can view and edit student information.</p>
+        <div class="table-wrap">
+          <table class="data-table" id="teacher-students-table">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Name</th>
+                <th>Class</th>
+                <th>Email</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Logs -->
       <section id="page-logs" class="page">
         <h2>Authentication Logging &amp; Monitoring</h2>
         <p class="page-sub">Security-relevant events recorded for evaluation.</p>
@@ -266,6 +362,7 @@
         </div>
       </section>
 
+      <!-- Test Matrix -->
       <section id="page-matrix" class="page">
         <h2>Identity Security Test Matrix</h2>
         <p class="page-sub">Mandatory test cases from the SRS.</p>
@@ -277,6 +374,68 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- ============ EDIT USER MODAL ============ -->
+  <div id="edit-user-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3>Edit User</h3>
+        <button class="modal-close" id="modal-close-btn">×</button>
+      </div>
+      <form id="edit-user-form" class="modal-body">
+        <input type="hidden" id="eu-id" />
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eu-username">Username</label>
+            <input type="text" id="eu-username" />
+          </div>
+          <div class="form-group">
+            <label for="eu-display">Full Name</label>
+            <input type="text" id="eu-display" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eu-email">Email</label>
+            <input type="email" id="eu-email" />
+          </div>
+          <div class="form-group">
+            <label for="eu-mobile">Mobile</label>
+            <input type="text" id="eu-mobile" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="eu-role">Role</label>
+            <select id="eu-role">
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="eu-class">Class</label>
+            <input type="text" id="eu-class" placeholder="For students only" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="eu-password">New Password <span class="hint">(leave blank to keep current)</span></label>
+          <input type="password" id="eu-password" placeholder="Min 6 characters" />
+        </div>
+
+        <div id="edit-user-msg" class="error-msg hidden"></div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="modal-cancel-btn">Cancel</button>
+          <button type="submit" class="btn-primary" id="modal-save-btn">Save Changes</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <div id="toast-container"></div>

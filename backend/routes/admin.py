@@ -67,21 +67,96 @@ def create_user():
 @admin_ip_guard
 @role_required("admin")
 def update_user(uid):
+    from backend.security import hash_password
+
     u = User.query.get(uid)
     if not u:
         return jsonify({"ok": False, "message": "User not found"}), 404
+
     d = request.get_json() or {}
+
+    # Username change (uniqueness check)
+    if "username" in d and d["username"]:
+        new_uname = d["username"].strip().lower()
+        if new_uname != u.username:
+            if User.query.filter_by(username=new_uname).first():
+                return jsonify({"ok": False, "message": "Username already taken"}), 400
+            if len(new_uname) < 3 or len(new_uname) > 64:
+                return jsonify({"ok": False, "message": "Username must be 3-64 chars"}), 400
+            u.username = new_uname
+
+    # Basic fields
     for field in ("display_name", "email", "mobile", "role", "class_name"):
         if field in d:
             setattr(u, field, d[field])
+
+    # Password change
     if "password" in d and d["password"]:
+        if len(d["password"]) < 6:
+            return jsonify({"ok": False, "message": "Password must be at least 6 characters"}), 400
         u.password_hash = hash_password(d["password"])
+
+    # Active flag
     if "is_active" in d:
         u.is_active = bool(d["is_active"])
+
     db.session.commit()
+
     log_event("User Updated", "Admin", "INFO",
-              f"User {u.username} updated", g.user.username, g.user.role)
-    return jsonify({"ok": True})
+              f"User {u.username} updated by admin",
+              g.user.username, g.user.role)
+
+    return jsonify({"ok": True, "user": u.to_public_dict()})
+
+
+# ============================================================
+# Teacher-only: edit students
+# ============================================================
+@admin_bp.route("/students", methods=["GET"])
+@role_required("teacher", "admin")
+def teacher_list_students():
+    """Return list of students (accessible by teacher and admin)."""
+    rows = User.query.filter_by(role="student").order_by(User.username).all()
+    return jsonify({"ok": True, "data": [{
+        "id": u.id, "username": u.username, "display_name": u.display_name,
+        "email": u.email, "mobile": u.mobile, "role": u.role,
+        "class_name": u.class_name, "is_active": u.is_active,
+        "last_login": u.last_login.isoformat() + "Z" if u.last_login else None,
+    } for u in rows]})
+
+
+@admin_bp.route("/students/<int:uid>", methods=["PUT"])
+@role_required("teacher", "admin")
+def teacher_update_student(uid):
+    """Teacher can only edit students."""
+    from backend.security import hash_password
+
+    u = User.query.get(uid)
+    if not u:
+        return jsonify({"ok": False, "message": "User not found"}), 404
+
+    # Teacher can only edit students
+    if g.user.role == "teacher" and u.role != "student":
+        return jsonify({"ok": False, "message": "Teachers can only edit students"}), 403
+
+    d = request.get_json() or {}
+
+    for field in ("display_name", "email", "mobile", "class_name"):
+        if field in d:
+            setattr(u, field, d[field])
+
+    if "password" in d and d["password"]:
+        if len(d["password"]) < 6:
+            return jsonify({"ok": False, "message": "Password must be at least 6 characters"}), 400
+        u.password_hash = hash_password(d["password"])
+
+    db.session.commit()
+
+    log_event("Student Updated", "Teacher/Admin", "INFO",
+              f"Student {u.username} updated by {g.user.username}",
+              g.user.username, g.user.role)
+
+    return jsonify({"ok": True, "user": u.to_public_dict()})
 
 
 @admin_bp.route("/users/<int:uid>", methods=["DELETE"])
@@ -130,13 +205,22 @@ def list_sessions():
     data = []
     for s in rows:
         u = User.query.get(s.user_id) if s.user_id else None
+        duration_seconds = int((s.last_seen - s.created_at).total_seconds())
+        duration_mins = duration_seconds // 60
+        duration_secs = duration_seconds % 60
+        duration_str = f"{duration_mins}m {duration_secs}s" if duration_mins > 0 else f"{duration_secs}s"
+
         data.append({
             "session_id": s.token_hash[:16],
             "user": u.username if u else "-",
             "role": u.role if u else "-",
-            "ip": s.ip, "user_agent": s.user_agent,
+            "ip": s.ip,
+            "user_agent": s.user_agent,
             "mode": s.mode,
+            "login_time": s.created_at.isoformat() + "Z",
             "last_seen": s.last_seen.isoformat() + "Z",
+            "duration": duration_str,
+            "duration_seconds": duration_seconds,
         })
     return jsonify({"ok": True, "data": data})
 
